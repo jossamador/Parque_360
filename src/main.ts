@@ -30,10 +30,16 @@ controls.rotateSpeed = -0.3;
 controls.target.set(0, 0, -1);
 controls.update();
 
-const gyroButton = document.createElement("button");
-gyroButton.className = "gyro-button";
-gyroButton.textContent = "Activar giroscopio";
-document.body.appendChild(gyroButton);
+const actionButton = document.createElement("button");
+actionButton.className = "gyro-button";
+actionButton.textContent = "Cargando...";
+document.body.appendChild(actionButton);
+
+function logXrDiagnostics(): void {
+  console.info("[XR] secureContext:", window.isSecureContext);
+  console.info("[XR] navigator.xr disponible:", typeof navigator.xr !== "undefined");
+  console.info("[XR] userAgent:", navigator.userAgent);
+}
 
 const zee = new THREE.Vector3(0, 0, 1);
 const euler = new THREE.Euler();
@@ -45,7 +51,13 @@ let isGyroActive = false;
 let alpha = 0;
 let beta = 0;
 let gamma = 0;
-let screenOrientation = window.orientation ? THREE.MathUtils.degToRad(window.orientation as number) : 0;
+let screenOrientation = THREE.MathUtils.degToRad(
+  typeof screen.orientation?.angle === "number"
+    ? screen.orientation.angle
+    : typeof window.orientation === "number"
+      ? window.orientation
+      : 0
+);
 
 function updateDeviceQuaternion(): void {
   euler.set(beta, alpha, -gamma, "YXZ");
@@ -90,18 +102,91 @@ async function activateGyro(): Promise<void> {
   window.addEventListener("deviceorientation", onDeviceOrientation);
   window.addEventListener("orientationchange", onScreenOrientationChange);
   isGyroActive = true;
-  gyroButton.textContent = "Giroscopio activo";
-  gyroButton.disabled = true;
+  actionButton.textContent = "Giroscopio activo";
+  actionButton.disabled = true;
 }
 
-gyroButton.addEventListener("click", async () => {
-  try {
-    await activateGyro();
-  } catch (error) {
-    console.error(error);
-    gyroButton.textContent = "No se pudo activar";
+async function startVrSession(): Promise<void> {
+  if (!navigator.xr) {
+    console.warn("[XR] No se puede iniciar VR: navigator.xr no esta disponible");
+    return;
   }
-});
+
+  actionButton.disabled = true;
+
+  try {
+    const session = await navigator.xr.requestSession("immersive-vr", {
+      optionalFeatures: ["local-floor", "bounded-floor"]
+    });
+    console.info("[XR] Sesion immersive-vr iniciada");
+
+    renderer.xr.setReferenceSpaceType("local-floor");
+    await renderer.xr.setSession(session);
+
+    actionButton.disabled = false;
+    actionButton.textContent = "Salir VR";
+    actionButton.onclick = async () => {
+      await session.end();
+    };
+
+    session.addEventListener("end", () => {
+      console.info("[XR] Sesion immersive-vr finalizada");
+      actionButton.textContent = "Entrar VR";
+      actionButton.disabled = false;
+      actionButton.onclick = () => {
+        void startVrSession();
+      };
+    });
+  } catch (error) {
+    console.error("[XR] Error al solicitar immersive-vr:", error);
+    actionButton.textContent = "Entrar VR";
+    actionButton.disabled = false;
+  }
+}
+
+function setupGyroButton(): void {
+  actionButton.textContent = "Activar giroscopio";
+  actionButton.disabled = false;
+  actionButton.onclick = async () => {
+    try {
+      await activateGyro();
+    } catch (error) {
+      console.error(error);
+      actionButton.textContent = "Activar giroscopio";
+      actionButton.disabled = false;
+    }
+  };
+}
+
+async function setupPrimaryAction(): Promise<void> {
+  logXrDiagnostics();
+
+  if (window.isSecureContext && navigator.xr) {
+    const isVrSupported = await navigator.xr.isSessionSupported("immersive-vr");
+    console.info("[XR] immersive-vr soportado:", isVrSupported);
+
+    if (isVrSupported) {
+      actionButton.textContent = "Entrar VR";
+      actionButton.disabled = false;
+      actionButton.onclick = () => {
+        void startVrSession();
+      };
+      return;
+    }
+  }
+
+  if (!window.isSecureContext) {
+    console.warn("[XR] Contexto inseguro: usa HTTPS para immersive-vr");
+  }
+
+  if (!navigator.xr) {
+    console.warn("[XR] WebXR no disponible en este navegador/dispositivo");
+  }
+
+  setupGyroButton();
+}
+
+void setupPrimaryAction();
 
 const panoramaUrl = new URL("../PuenteSalleVR.png", import.meta.url).href;
 
