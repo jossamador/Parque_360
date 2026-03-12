@@ -18,5 +18,6 @@ function resolveBasePath(): string {
 }
 
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? resolveBasePath() : "/"
+  // Use relative asset paths for non-Actions production builds (e.g. manual GitHub Pages deploys).
+  base: process.env.GITHUB_ACTIONS ? resolveBasePath() : "./"
 });
