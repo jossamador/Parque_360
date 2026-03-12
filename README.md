@@ -5,7 +5,7 @@ Proyecto para visualizar una imagen 360 equirectangular (4000x2000) en desktop y
 ## Requisitos
 
 - Node.js 18+
-- Imagen 360 en formato equirectangular (2:1), en este caso: `PuenteSalleVR.png`
+- Imagen 360 en formato equirectangular (2:1), en este caso: `park_innovacion.png`
 
 ## Ejecutar en local
 

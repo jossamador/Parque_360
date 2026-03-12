@@ -188,7 +188,7 @@ async function setupPrimaryAction(): Promise<void> {
 
 void setupPrimaryAction();
 
-const panoramaUrl = new URL("../PuenteSalleVR.png", import.meta.url).href;
+const panoramaUrl = new URL("../park_innovacion.png", import.meta.url).href;
 
 const textureLoader = new THREE.TextureLoader();
 textureLoader.load(
